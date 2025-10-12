@@ -3,47 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trip AI Chat</title>
+    <title>AI Travel Assistant</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Trip AI Chat</h1>
-    <div id="chat-box"></div>
-    <input type="text" id="user-input" placeholder="Type your question here...">
-    <button id="send-btn">Send</button>
+    <div class="chat-container">
+        <h1>AI Travel Assistant</h1>
+        <div id="chat-box"></div>
+        <input type="text" id="user-input" placeholder="Ask about your trip...">
+        <button id="send-btn">Send</button>
+    </div>
 
     <script>
         const chatBox = document.getElementById("chat-box");
-        const userInput = document.getElementById("user-input");
+        const input = document.getElementById("user-input");
         const sendBtn = document.getElementById("send-btn");
-        let sessionId = "default";
+        const sessionId = "default"; // simple single-session
 
         function appendMessage(sender, text) {
-            const msgDiv = document.createElement("div");
-            msgDiv.className = sender;
-            msgDiv.textContent = text;
-            chatBox.appendChild(msgDiv);
+            const msg = document.createElement("div");
+            msg.className = sender;
+            msg.innerText = text;
+            chatBox.appendChild(msg);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        sendBtn.onclick = async () => {
-            const message = userInput.value.trim();
+        sendBtn.addEventListener("click", async () => {
+            const message = input.value.trim();
             if (!message) return;
-            appendMessage("user", "You: " + message);
-            userInput.value = "";
+            appendMessage("user", message);
+            input.value = "";
 
-            const resp = await fetch("/chat", {
+            const res = await fetch("/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: message, session_id: sessionId })
+                body: JSON.stringify({ message, session_id: sessionId })
             });
-            const data = await resp.json();
-            appendMessage("assistant", "AI: " + data.reply);
-            sessionId = data.session_id;
-        };
+            const data = await res.json();
+            appendMessage("assistant", data.reply);
+        });
 
-        userInput.addEventListener("keypress", function(e){
-            if(e.key === "Enter") sendBtn.click();
+        input.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") sendBtn.click();
         });
     </script>
 </body>
