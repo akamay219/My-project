@@ -1,74 +1,46 @@
-body {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    min-height: 100vh;
-    margin: 0;
-    text-align: center;
-    background-color: #ffd8e2;
-    padding: 20px;
-}
+from flask import Flask, request, render_template, jsonify
+import os
+import openai
 
-h1 {
-    font-family: monaco, monospace;
-    color:#d61142;
-    margin-bottom: 5px;
-}
+app = Flask(__name__)
 
-textarea, input[type=text] {
-    margin-top: 7px;
-    width: 75%;
-    padding: 5px;
-}
+# Load OpenAI API key from environment variable
+openai.api_key = os.getenv("OPENAI_API_KEY")
+if not openai.api_key:
+    raise ValueError("Please set your OPENAI_API_KEY as an environment variable.")
 
-button {
-    margin-top: 10px;
-    background-color: #ec266f;  
-    color: white;              
-    padding: 10px 20px;         
-    text-decoration: none;      
-    border-radius: 5px; 
-    border-width: 2px;  
-    border-color: #d91942;     
-    font-family: Andale Mono, monospace;
-    font-weight: lighter;
-    transition: 0.3s;
-}
+# Store conversation history per session (in memory)
+SESSIONS = {}
 
-button:hover {
-    background-color: #db2553;
-}
+@app.route("/")
+def index():
+    return render_template("index.html")
 
-.build {
-    margin-bottom: 2px;
-}
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    session_id = data.get("session_id", "default")
+    user_message = data.get("message", "")
 
-p2 {
-    color: #db173b;
-    font-family: Andale Mono, monospace;
-    font-size: smaller;
-}
+    # Initialize history for this session
+    history = SESSIONS.setdefault(session_id, [])
+    history.append({"role": "user", "content": user_message})
 
-#chat-container {
-    width: 75%;
-    margin-top: 20px;
-}
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": m["role"], "content": m["content"]} for m in history],
+            max_tokens=400,
+            temperature=0.7
+        )
+        reply = response.choices[0].message["content"]
+    except Exception as e:
+        reply = f"Error contacting OpenAI API: {e}"
 
-#chat-box {
-    border: 2px solid #db173b;
-    height: 300px;
-    overflow-y: scroll;
-    padding: 10px;
-    background-color: #fff0f5;
-    margin-bottom: 5px;
-}
+    # Add AI response to history
+    history.append({"role": "assistant", "content": reply})
 
-#user-input {
-    width: 80%;
-    padding: 5px;
-}
+    return jsonify({"reply": reply, "session_id": session_id})
 
-#send-btn {
-    width: 18%;
-}
+if __name__ == "__main__":
+    app.run(debug=True)
